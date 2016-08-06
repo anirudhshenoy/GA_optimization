@@ -11,14 +11,14 @@ import matplotlib.pyplot as plt
 warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning) 
 np.set_printoptions(precision=3,suppress=True)
 
-params = [500, 0.05, 250, 4, 50]
+params = [500, 0.2, 200, 4, 50]
 #plt.axis([0, 260, 0, 2.6])
 #plt.ion()
 #These are just some parameters for the GA, defined below in order:
 # [Init pop (pop=100), mut rate (=5%), num generations (250), chromosome/solution length (3), # winners/per gen]
 
-b_const=[0.1,3]
-c_const=[0.1,0.3]
+b_const=[0.1,2]
+c_const=[0.1,0.4]
 alpha_const=[0,3]
 airfoil_const=[0,639]          #1468 for General AFs
 AR_const=5
@@ -91,15 +91,20 @@ def fitness(pop):
     lift=0.5*rho*(v**2)*wing_area*cl                    #Add intercept to lift slope predictor
     cd=cd_p+cd_i
     drag=0.5*rho*(v**2)*wing_area*cd    
-    if AR>=AR_const and wing_area<=area_const and lift>= lift_const and (b_pop>=b_const[0] and b_pop<=b_const[1]) and (c_pop>=c_const[0] and c_pop<=c_const[1]) and (alpha_pop>=alpha_const[0] and alpha_pop<=alpha_const[1]):
+    #if AR>=AR_const :
             #Lift
             #AR
             #wing_area
             #
             #fit=(4/((pop[1]**2)*pop[0])) + (1/drag)                 #Added Alpha +lift/3 
-            fit=(lift/drag) +(100/b_pop)                    #stall angle characteristics  Minimize moment
-    else:
-            fit=-np.inf                         #Replacing this with a fitness function causes problems because b,c for some reason have huge values after Gen1 ? Because of Mutation ?
+                                                            #Play around with Lift_fit parameters for convergence
+    lift_fit=100*math.exp(-((lift-lift_const)**2)/(2*10**2))              #Gaussian function centered around lift_constant, A controls height
+    fit=(lift/drag)+lift_fit              #stall angle characteristics  Minimize moment
+    #if lift>=lift_const:
+    #        fit=lift/drag
+        
+    #else:
+    #        fit=-np.inf                         #Replacing this with a fitness function causes problems because b,c for some reason have huge values after Gen1 ? Because of Mutation ?
                                                 #Replacing with a function instead would alow the program to know how bad the individual was, might allow for faster convergence 
     return fit
                             
@@ -150,6 +155,7 @@ for j in range (params[2]):
         winners = np.zeros((params[4], params[3]))
         best_fit=max(fitVec[:,1])
         best_cand=np.argmax(fitVec[:,1])
+        print(curPop[best_cand])
         if best_fit>best_fit_overall:
                best_soln = curPop[np.argmax(fitVec[:,1])]
                best_b=best_soln[0]
@@ -171,11 +177,11 @@ for j in range (params[2]):
                             if curPop[k,3]>airfoil_const[1]:
                                     curPop[k,3]=random.randint(0,airfoil_const[1])
                             if curPop[k,2]>alpha_const[1] or curPop[k,2]<alpha_const[0]:
-                                    curPop[k,2]=np.random.uniform(0,alpha_const[1])
+                                    curPop[k,2]=np.random.uniform(alpha_const[0],alpha_const[1])
                             if curPop[k,1]>c_const[1] or curPop[k,1]<c_const[0]:
-                                    curPop[k,1]=np.random.uniform(0,c_const[1])
+                                    curPop[k,1]=np.random.uniform(c_const[0],c_const[1])
                             if curPop[k,0]>b_const[1] or curPop[k,0]<b_const[0]:
-                                    curPop[k,0]=np.random.uniform(0,b_const[1])
+                                    curPop[k,0]=np.random.uniform(b_const[0],b_const[1])
 
         #plt.scatter(j, best_b)
         #plt.pause(0.005)
