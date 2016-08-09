@@ -17,13 +17,13 @@ params = [500, 0.05, 200, 5, 50]
 #GA Parameters
 # [Init pop (pop=100), mut rate (=5%), num generations (250), chromosome/solution length (3), # winners/per gen]
 
-b_const=[0.1,2]
-c_const=[0.1,0.3]
+b_const=[0.1,3]
+c_const=[0.1,0.4]
 taper_const=[0.5,0.9]
 alpha_const=[0,3]
 airfoil_const=[0,635]          #1468 for General AFs
 AR_const=5
-lift_const=37
+lift_const=49
 area_const=1
 rho=1.227
 v=10
@@ -124,7 +124,7 @@ def fitness(pop):
 
     #Fitness Value Calculations                                                         #Play around with Lift_fit parameters for convergence
     lift_fit=70*math.exp(-((lift-lift_const)**2)/(2*7**2))   #70,7                         #Gaussian function centered around lift_constant, A controls height
-    fit=(lift/drag)+lift_fit #+ (1/b_pop)*5                                                        #stall angle characteristics  Minimize moment
+    fit=(1/cd)/50 +lift_fit #+ (1/b_pop)*5                                                        #stall angle characteristics  Minimize moment
 
 
     return fit
