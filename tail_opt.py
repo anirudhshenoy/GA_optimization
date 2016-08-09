@@ -17,13 +17,13 @@ params = [500, 0.35, 200, 5, 50]
 #GA Parameters
 # [Init pop (pop=100), mut rate (=5%), num generations (250), chromosome/solution length (3), # winners/per gen]
 
-b_const=[0.5,1.75]
-c_const=[0.1,0.4]
+b_const=[0.5,1.25]
+c_const=[0.15,0.4]
 alpha_const=[0,3]
 airfoil_const=[0,34]          #1468 for General AFs
-l_t_const=[0.6,1.7]             #From CG to C/4_t
+l_t_const=[0.6,1.0]             #From CG to C/4_t
 i_t_const=[-10,+10]                 #Tail setting angle
-E_0=0                         #Downwash angle   3.5
+E_0=3.5                         #Downwash angle   3.5
 dE_dA=0.1                       #Downwash slope 
 CM_ac_wb=-0.277
 CM_cg_const=0.05
@@ -51,6 +51,9 @@ print ("Opened Sheet")
 slopes=[]
 intercepts=[]
 a_0=[]
+cd_d2=[]
+cd_d1=[]
+cd_d0=[]
 
 
 airfoil_names=[]
@@ -91,6 +94,18 @@ for cellObj in sheet.columns[1]:
 for cellObj in sheet.columns[2]:
 	intercepts.append(cellObj.value)
 
+sheet = wb2.get_sheet_by_name('cd_slopes')
+
+
+for cellObj in sheet.columns[1]:
+        cd_d2.append(cellObj.value)
+	
+for cellObj in sheet.columns[2]:
+	cd_d1.append(cellObj.value)
+
+for cellObj in sheet.columns[3]:
+	cd_d0.append(cellObj.value)
+
 
 #[b c i_t AF l_t]
 def fitness(pop):
@@ -100,6 +115,9 @@ def fitness(pop):
     i_pop=pop[2]
     AF_pop=pop[3]
     l_pop=pop[4]
+    d2=cd_d2[int(AF_pop)]
+    d1=cd_d1[int(AF_pop)]
+    d0=cd_d0[int(AF_pop)]
     
 
     #Wing Dimensions
@@ -113,7 +131,9 @@ def fitness(pop):
     #cl=intercepts[int(AF_pop)]+(a_new*(i_pop-E_0))
     cl=a_new*alpha_wing*(1-dE_dA)-(a_new*(i_pop+E_0))
     #lift=0.5*rho*(v**2)*tail_area*cl
-    #cd_i=(cl**2)/(pi*e*AR)
+    cd_i=(cl**2)/(pi*e*AR)
+    cd_p=d2*(alpha_wing-(i_pop+E_0))**2 + d1*(alpha_wing-(i_pop+E_0)) + d0
+    cd=cd_i+cd_p
     #drag=0.5*rho*(v**2)*tail_area*cd_i
     
     #Lift Calculation
@@ -130,8 +150,8 @@ def fitness(pop):
   
 
     #Fitness Value Calculations                                                         #Play around with Lift_fit parameters for convergence
-    cm_fit=70*math.exp(-(((CM_cg-CM_cg_const)*1000)**2)/(2*1000**2))                            #Gaussian function centered around lift_constant, A controls height
-    fit=cm_fit                                                          #stall angle characteristics  Minimize moment
+    cm_fit=100*math.exp(-(((CM_cg-CM_cg_const)*1000)**2)/(2*1000**2))                            #Gaussian function centered around lift_constant, A controls height
+    fit=cm_fit +math.fabs(1/cd)/10 +(1/c_pop)*3.5                                                    #stall angle characteristics  Minimize moment
 
 
     return fit
@@ -142,6 +162,9 @@ def final_fitness(pop):
     i_pop=pop[2]
     AF_pop=int(pop[3])
     l_pop=pop[4]
+    d2=cd_d2[int(AF_pop)]
+    d1=cd_d1[int(AF_pop)]
+    d0=cd_d0[int(AF_pop)]
 
     tail_area=b_pop*c_pop
     AR_tail=(b_pop**2)/tail_area
@@ -150,6 +173,10 @@ def final_fitness(pop):
     a_new=slopes[int(AF_pop)]/(pi*e1*AR_tail)
     a_new=slopes[int(AF_pop)]/(1+(57.3*a_new))
     cl=a_new*alpha_wing*(1-dE_dA)-(a_new*(i_pop+E_0))
+    cd_i=(cl**2)/(pi*e*AR)
+    cd_p=d2*(alpha_wing-(i_pop+E_0))**2 + d1*(alpha_wing-(i_pop+E_0)) + d0
+    cd=cd_i+cd_p
+    
 
     #Lift Calculation
     
@@ -168,6 +195,7 @@ def final_fitness(pop):
     print("Tail Set angle: "+str(i_pop))
     print("Moment Arm: "+str(l_pop))
     print("CM: "+str(CM_cg))
+    print("Cd: "+str(cd))
     
     
 
