@@ -17,10 +17,10 @@ params = [500, 0.35, 200, 4, 50]
 #GA Parameters
 # [Init pop (pop=100), mut rate (=5%), num generations (250), chromosome/solution length (3), # winners/per gen]
 
-b_const=[0.1,5]
-c_const=[0.1,0.35]
+b_const=[0.1,2.5]
+c_const=[0.1,0.4]
 alpha_const=[0,3]
-airfoil_const=[0,639]          #1468 for General AFs
+airfoil_const=[0,635]          #1468 for General AFs
 AR_const=5
 lift_const=40
 area_const=1
@@ -42,6 +42,9 @@ temp=[]                                       #Please fix this shit
 cd_d2=[]
 cd_d1=[]
 cd_d0=[]
+cm_m2=[]
+cm_m1=[]
+cm_m0=[]
 
 airfoil_names=[]
 
@@ -55,7 +58,7 @@ for cellObj in sheet.columns[1]:
 for cellObj in sheet.columns[2]:
 	intercepts.append(cellObj.value)
 
-sheet = wb.get_sheet_by_name('slopes1')
+sheet = wb.get_sheet_by_name('cd_slopes')
 
 
 for cellObj in sheet.columns[1]:
@@ -66,6 +69,19 @@ for cellObj in sheet.columns[2]:
 
 for cellObj in sheet.columns[3]:
 	cd_d0.append(cellObj.value)
+
+sheet = wb.get_sheet_by_name('cm_slopes')
+
+
+for cellObj in sheet.columns[1]:
+        cm_m2.append(cellObj.value)
+	
+for cellObj in sheet.columns[2]:
+	cm_m1.append(cellObj.value)
+
+for cellObj in sheet.columns[3]:
+	cm_m0.append(cellObj.value)
+
 
 
 #[b c alpha AF]
@@ -78,6 +94,9 @@ def fitness(pop):
     d2=cd_d2[int(AF_pop)]
     d1=cd_d1[int(AF_pop)]
     d0=cd_d0[int(AF_pop)]
+    m2=cm_m2[int(AF_pop)]
+    m1=cm_m1[int(AF_pop)]
+    m0=cm_m0[int(AF_pop)]
 
     #Wing Dimensions
     wing_area=b_pop*c_pop
@@ -95,12 +114,14 @@ def fitness(pop):
     cd_i=(cl**2)/(pi*e*AR)
     cd_p=d2*(alpha_pop)**2 + d1*(alpha_pop) + d0                                                      
     cd=cd_p+cd_i
-    drag=0.5*rho*(v**2)*wing_area*cd    
+    drag=0.5*rho*(v**2)*wing_area*cd
 
+    #Moment Calculation
+    #cm=m2*(alpha_pop)**2 + m1*(alpha_pop) + m0
 
     #Fitness Value Calculations                                                         #Play around with Lift_fit parameters for convergence
-    lift_fit=70*math.exp(-((lift-lift_const)**2)/(2*7**2))                            #Gaussian function centered around lift_constant, A controls height
-    fit=(lift/drag)+lift_fit                                                            #stall angle characteristics  Minimize moment
+    lift_fit=70*math.exp(-((lift-lift_const)**2)/(2*20**2))   #70,7                         #Gaussian function centered around lift_constant, A controls height
+    fit=(lift/drag)+lift_fit #+ (1/b_pop)*5                                                        #stall angle characteristics  Minimize moment
 
 
     return fit
@@ -177,7 +198,7 @@ for j in range (params[2]):
         nextPop[len(winners):] = np.array([np.array(np.random.permutation(np.repeat(winners[:, x], ((params[0] - len(winners))/len(winners)), axis=0))) for x in range(winners.shape[1])]).T
 
         #Mutation
-        curPop = np.multiply(nextPop, np.matrix([np.float(np.random.uniform(0.5,1.)) if random.random() < params[1] else 1 for x in range(nextPop.size)]).reshape(nextPop.shape))
+        curPop = np.multiply(nextPop, np.matrix([np.float(np.random.uniform(0.5,1.5)) if random.random() < params[1] else 1 for x in range(nextPop.size)]).reshape(nextPop.shape))
 
 
 
