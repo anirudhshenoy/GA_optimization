@@ -18,21 +18,24 @@ params = [500, 0.35, 200, 5, 50]
 # [Init pop (pop=100), mut rate (=5%), num generations (250), chromosome/solution length (3), # winners/per gen]
 
 b_const=[0.5,1.25]
-c_const=[0.15,0.4]
+c_const=[0.15,0.3]
 alpha_const=[0,3]
 airfoil_const=[0,34]          #1468 for General AFs
-l_t_const=[0.6,1.0]             #From CG to C/4_t
+l_t_const=[0.5,1]             #From CG to C/4_t
 i_t_const=[-10,+10]                 #Tail setting angle
-E_0=3.5                         #Downwash angle   3.5
+E_0=3                         #Downwash angle   3.5
 dE_dA=0.1                       #Downwash slope 
-CM_ac_wb=-0.277
-CM_cg_const=0.05
+
+
+#CHECK AT EVERY RUN
+CM_ac_wb=-0.262
+CM_cg_const=0.01
 h_h_ac_w=0                    #Added for consistency
-c_wing=0.269
-b_wing=2.904
+c_wing=0.367
+b_wing=2.25
 S_wing=c_wing*b_wing
 wing_airfoil=452
-alpha_wing=2.5
+alpha_wing=3
 
 
 rho=1.227
@@ -43,7 +46,7 @@ pi=3.1415
 
 
 #Open XLS for Airfoil Data
-wb = openpyxl.load_workbook('C:/Users/Aniru_000/Desktop/TD-1/Airfoil/s1223/airfoil/MasterPolarsFlat/airfoilpolars_master_flat.xlsx')
+wb = openpyxl.load_workbook('C:/Users/Aniru_000/Desktop/TD-1/Airfoil/s1223/airfoil/MasterPolarsFlat/airfoilpolars_master.xlsx')
 wb2 = openpyxl.load_workbook('C:/Users/Aniru_000/Desktop/TD-1/Airfoil/s1223/airfoil/tail_foil_naca/Inverted/Polars/airfoilpolars_master.xlsx')
 print ("Opened File")
 sheet = wb.get_sheet_by_name('slopes')                #Change to index based
@@ -151,7 +154,7 @@ def fitness(pop):
 
     #Fitness Value Calculations                                                         #Play around with Lift_fit parameters for convergence
     cm_fit=100*math.exp(-(((CM_cg-CM_cg_const)*1000)**2)/(2*1000**2))                            #Gaussian function centered around lift_constant, A controls height
-    fit=cm_fit +math.fabs(1/cd)/10 +(1/c_pop)*3.5                                                    #stall angle characteristics  Minimize moment
+    fit=cm_fit +math.fabs(1/cd)/10 #+(1/c_pop)*2                                                    #stall angle characteristics  Minimize moment
 
 
     return fit
@@ -208,7 +211,7 @@ b =np.random.choice(np.arange(b_const[0],b_const[1],step=0.01),size=(params[0],1
 c =np.random.choice(np.arange(c_const[0],c_const[1],step=0.01),size=(params[0],1),replace=True)
 i_t =np.random.choice(np.arange(i_t_const[0],i_t_const[1],step=0.5),size=(params[0],1),replace=True)
 airfoil =np.random.choice(np.arange(airfoil_const[0],airfoil_const[1],step=1),size=(params[0],1),replace=True)
-l_t=b =np.random.choice(np.arange(l_t_const[0],l_t_const[1],step=0.1),size=(params[0],1),replace=True)
+l_t=b =np.random.choice(np.arange(l_t_const[0],l_t_const[1],step=0.05),size=(params[0],1),replace=True)
 
 
 curPop=np.concatenate((b,c,i_t,airfoil,l_t),1)
