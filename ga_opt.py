@@ -17,13 +17,15 @@ params = [500, 0.05, 200, 5, 50]
 #GA Parameters
 # [Init pop (pop=100), mut rate (=5%), num generations (250), chromosome/solution length (3), # winners/per gen]
 
-b_const=[0.1,2]
-c_const=[0.1,0.3]
-taper_const=[0.5,0.9]
+#CHECK CONSTRAINTS BEFORE EVERY RUN
+b_const=[0.1,2.25]
+c_const=[0.1,0.4]
+taper_const=[0.5,0.95]
 alpha_const=[0,3]
-airfoil_const=[0,635]          #1468 for General AFs
+          #1376 for General AFs 635 or flat 63 for Gen2 25for Tail Foils
 AR_const=5
-lift_const=37
+lift_const=43
+drag_const=0
 area_const=1
 rho=1.227
 v=10
@@ -33,7 +35,8 @@ pi=3.1415
 
 
 #Open XLS for Airfoil Data
-wb = openpyxl.load_workbook('C:/Users/Aniru_000/Desktop/TD-1/Airfoil/s1223/airfoil/MasterPolarsFlat/airfoilpolars_master_flat.xlsx')
+#CHANGE PATH TO AIRFOIL DATABASE
+wb = openpyxl.load_workbook('C:/Users/Aniru_000/Desktop/TD-1/Airfoil/s1223/airfoil/MasterPolarsFlat/airfoilpolars_master.xlsx')
 print ("Opened File")
 sheet = wb.get_sheet_by_name('slopes')                #Change to index based
 print ("Opened Sheet")
@@ -60,6 +63,7 @@ for cellObj in sheet.columns[2]:
 	intercepts.append(cellObj.value)
 
 sheet = wb.get_sheet_by_name('cd_slopes')
+airfoil_const=[0,len(slopes)-1]
 
 
 for cellObj in sheet.columns[1]:
@@ -123,9 +127,10 @@ def fitness(pop):
     #cm=m2*(alpha_pop)**2 + m1*(alpha_pop) + m0
 
     #Fitness Value Calculations                                                         #Play around with Lift_fit parameters for convergence
-    lift_fit=70*math.exp(-((lift-lift_const)**2)/(2*7**2))   #70,7                         #Gaussian function centered around lift_constant, A controls height
-    fit=(lift/drag)+lift_fit #+ (1/b_pop)*5                                                        #stall angle characteristics  Minimize moment
-
+    lift_fit=70*math.exp(-((lift-lift_const)**2)/(2*35**2))   #70,7                         #Gaussian function centered around lift_constant, A controls height
+    drag_fit=70*math.exp(-((drag-drag_const)**2)/(2*35**2))
+    #fit=(1/cd)/50 +lift_fit #+ (1/b_pop)*5                                                        #stall angle characteristics  Minimize moment
+    fit=lift_fit+drag_fit
 
     return fit
                             
@@ -190,7 +195,7 @@ for j in range (params[2]):
                best_fit_overall=best_fit
                
         print("(Gen: #%s) Best Fitness: %s" % (j,best_fit))
-        print("Airfoil: "+ airfoil_names[int(curPop[best_cand,3])])
+        print("Airfoil: "+ airfoil_names[int(curPop[best_cand,4])])
 
         #Hall of Fame
         for n in range(len(winners)):
@@ -214,7 +219,7 @@ for j in range (params[2]):
                             curPop[k,4]=math.floor(math.fabs(curPop[k,4]))
                             if curPop[k,4]>airfoil_const[1]:
                                     curPop[k,4]=random.randint(0,airfoil_const[1])
-                            if curPop[k,3]>alpha_const[1] or curPop[k,2]<alpha_const[0]:
+                            if curPop[k,3]>alpha_const[1] or curPop[k,3]<alpha_const[0]:
                                     curPop[k,3]=np.random.uniform(alpha_const[0],alpha_const[1])
                             if curPop[k,1]>c_const[1] or curPop[k,1]<c_const[0]:
                                     curPop[k,1]=np.random.uniform(c_const[0],c_const[1])
