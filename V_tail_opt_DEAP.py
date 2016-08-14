@@ -14,7 +14,7 @@ from deap import base
 from deap import creator
 from deap import tools
 
-b_const=[0.25,2]
+b_const=[0.25,2.1]
 c_const=[0.2,0.3]
 taper_const=[0.5,0.95]
 l_t_const=[0.6,1.0]             #From CG to C/4_t
