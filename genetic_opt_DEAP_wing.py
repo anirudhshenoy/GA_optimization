@@ -1,32 +1,29 @@
 import random
 import numpy
 import math
-
 import openpyxl
-from openpyxl.styles import Alignment
-from openpyxl import Workbook
 
 from deap import algorithms
 from deap import base
 from deap import creator
 from deap import tools
 
-b_const=[0.5,2.25]
-c_const=[0.2,0.4]
+
+b_const=[0.5,1.8]
+c_const=[0.2,0.24]
 taper_const=[0.5,0.95]
 alpha_const=[0,3]
 
-
-AR_const=5
-lift_const=43
-drag_const=0
-area_const=1
+lift_target_kgs=4.0
+lift_target=lift_target_kgs/9.8
+drag_target=0
 rho=1.227
-v=10
+v=12
 e1=0.9
 e=0.85
 pi=3.1415
 
+print ("Opening Airfoil Database")
 wb = openpyxl.load_workbook('C:/Users/Aniru_000/Desktop/TD-1/Airfoil/s1223/airfoil/MasterPolarsFlat/airfoilpolars_master.xlsx')
 print ("Opened File")
 sheet = wb.get_sheet_by_name('slopes')                #Change to index based
@@ -34,51 +31,30 @@ print ("Opened Sheet")
 slopes=[]
 intercepts=[]
 temp=[]                                       #Please fix this shit
-cd_d2=[]
-cd_d1=[]
-cd_d0=[]
-cm_m2=[]
-cm_m1=[]
-cm_m0=[]
+cd_coeff=[]
+
 
 airfoil_names=[]
 
 
 for cellObj in sheet.columns[0]:
-	airfoil_names.append(cellObj.value)
-	
+    airfoil_names.append(cellObj.value)
+    
 for cellObj in sheet.columns[1]:
-	slopes.append(cellObj.value)
+    slopes.append(cellObj.value)
 
 for cellObj in sheet.columns[2]:
-	intercepts.append(cellObj.value)
+    intercepts.append(cellObj.value)
 
 sheet = wb.get_sheet_by_name('cd_slopes')
 airfoil_const=[0,len(slopes)-1]
 
 
-for cellObj in sheet.columns[1]:
-        cd_d2.append(cellObj.value)
-	
-for cellObj in sheet.columns[2]:
-	cd_d1.append(cellObj.value)
-
-for cellObj in sheet.columns[3]:
-	cd_d0.append(cellObj.value)
-
-sheet = wb.get_sheet_by_name('cm_slopes')
-
-
-for cellObj in sheet.columns[1]:
-        cm_m2.append(cellObj.value)
-	
-for cellObj in sheet.columns[2]:
-	cm_m1.append(cellObj.value)
-
-for cellObj in sheet.columns[3]:
-	cm_m0.append(cellObj.value)
-
-
+for rowNum in range(2,len(sheet.columns[1])+1):
+    a=sheet.cell(row=rowNum, column=2).value
+    b=sheet.cell(row=rowNum, column=3).value
+    c=sheet.cell(row=rowNum, column=4).value
+    cd_coeff.append([a,b,c])
 
 
 
@@ -91,6 +67,7 @@ IND_SIZE=5
 
 
 toolbox = base.Toolbox()
+
 toolbox.register("attr_span", random.uniform, b_const[0], b_const[1])
 toolbox.register("attr_chord", random.uniform, c_const[0], c_const[1])
 toolbox.register("attr_taper", random.uniform, taper_const[0],taper_const[1])
@@ -104,25 +81,19 @@ toolbox.register("individual", tools.initCycle, creator.Individual,
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
 def evalOneMax(individual):
-    #print (individual)
+    
     #Aliases        
     b_pop=individual[0]
     c_pop=individual[1]
     taper=individual[2]
     alpha_pop=individual[3]
     AF_pop=individual[4]
-    d2=cd_d2[int(AF_pop)]
-    d1=cd_d1[int(AF_pop)]
-    d0=cd_d0[int(AF_pop)]
-    m2=cm_m2[int(AF_pop)]
-    m1=cm_m1[int(AF_pop)]
-    m0=cm_m0[int(AF_pop)]
+    cd_pop=cd_coeff[int(AF_pop)]
+    
 
     #Wing Dimensions
-    MAC=(2/3)*c_pop*((taper**2 + taper +1)/(taper+1))
-    
+    MAC=(2/3)*c_pop*((taper**2 + taper +1)/(taper+1))   
     wing_area=b_pop*MAC
-    #print(c_pop)
     AR=(b_pop**2)/wing_area
 
     #Slope Correction    
@@ -135,17 +106,14 @@ def evalOneMax(individual):
 
     #Drag Calculation
     cd_i=(cl**2)/(pi*e*AR)
-    cd_p=d2*(alpha_pop)**2 + d1*(alpha_pop) + d0                                                      
+    cd_p=cd_pop[0]*(alpha_pop)**2 + cd_pop[1]*(alpha_pop) + cd_pop[2]                                                      
     cd=cd_p+cd_i
     drag=0.5*rho*(v**2)*wing_area*cd
 
-    #Moment Calculation
-    #cm=m2*(alpha_pop)**2 + m1*(alpha_pop) + m0
-
+   
     #Fitness Value Calculations                                                         #Play around with Lift_fit parameters for convergence
-    lift_fit=70*math.exp(-((lift-lift_const)**2)/(2*35**2))   #70,7                         #Gaussian function centered around lift_constant, A controls height
-    drag_fit=70*math.exp(-((drag-drag_const)**2)/(2*35**2))
-    #fit=(1/cd)/50 +lift_fit #+ (1/b_pop)*5                                                        #stall angle characteristics  Minimize moment
+    lift_fit=70*math.exp(-((lift-lift_target)**2)/(2*35**2))   #70,7                     #Gaussian function centered around lift_constant, A controls height
+    drag_fit=70*math.exp(-((drag-drag_target)**2)/(2*35**2))                             #stall angle characteristics  Minimize moment
     fit=lift_fit+drag_fit+ (1/b_pop)*5  
 
     return (fit,)
@@ -180,7 +148,7 @@ toolbox.decorate("mate", checkBounds(0, 1))
 toolbox.decorate("mutate", checkBounds(0, 1))
 
 def main():
-    random.seed(64)
+    
     
     pop = toolbox.population(n=300)
     #print(pop)
