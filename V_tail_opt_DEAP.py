@@ -14,25 +14,26 @@ from deap import base
 from deap import creator
 from deap import tools
 
-b_const=[0.25,2.1]
-c_const=[0.2,0.3]
+b_const=[0.25,1]
+c_const=[0.1,0.25]
 taper_const=[0.5,0.95]
 l_t_const=[0.6,1.0]             #From CG to C/4_t
-i_t_const=[0,0]                 #Tail setting angle
+i_t_const=[-2,+2]                 #Tail setting angle
+h_cg_const=[0,0.4]
 taper_const=[0.5,0.95]
-E_0=3                         #Downwash angle   3.5
+E_0=0                         #Downwash angle   3.5
 dE_dA=0.1                       #Downwash slope 
 
 
 
-CM_ac_wb=-0.262
-CM_cg_const=0.1
-h_h_ac_w=0                    #Added for consistency
+CM_ac_wb=-0.245
+CM_cg_const=0.01
+h_ac_w=0.25                    #Added for consistency
 c_wing=0.367
 b_wing=2.25
 S_wing=c_wing*b_wing
-wing_airfoil=452
-alpha_wing=3
+wing_airfoil=504
+alpha_wing=3.2
 
 
 rho=1.227
@@ -68,6 +69,7 @@ for cellObj in sheet.columns[2]:
 AR=(b_wing**2)/S_wing
 a_wing=slopes[int(wing_airfoil)]/(pi*e1*AR)
 a_wing=slopes[int(wing_airfoil)]/(1+(57.3*a_wing))
+cl_wing=a_wing*alpha_wing + intercepts[int(wing_airfoil)]
 
 slopes=[]
 intercepts=[]
@@ -112,10 +114,13 @@ toolbox.register("attr_taper", random.uniform, taper_const[0],taper_const[1])
 toolbox.register("attr_i_t", random.uniform, i_t_const[0],i_t_const[1])
 toolbox.register("attr_l_t", random.uniform, l_t_const[0],l_t_const[1])
 toolbox.register("attr_airfoil", random.randint, airfoil_const[0],airfoil_const[1])
+toolbox.register("attr_h_cg", random.uniform, h_cg_const[0],h_cg_const[1])
+
+
 
 N_CYCLES=1
 toolbox.register("individual", tools.initCycle, creator.Individual,
-                 (toolbox.attr_span, toolbox.attr_chord,toolbox.attr_i_t,toolbox.attr_airfoil,toolbox.attr_l_t, toolbox.attr_taper), n=N_CYCLES)
+                 (toolbox.attr_span, toolbox.attr_chord,toolbox.attr_i_t,toolbox.attr_airfoil,toolbox.attr_l_t, toolbox.attr_taper, toolbox.attr_h_cg), n=N_CYCLES)
 
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
@@ -128,6 +133,7 @@ def evalOneMax(individual):
     AF_pop=individual[3]
     l_pop=individual[4]
     taper=individual[5]
+    h_cg=individual[6]
     d2=cd_d2[int(AF_pop)]
     d1=cd_d1[int(AF_pop)]
     d0=cd_d0[int(AF_pop)]
@@ -145,6 +151,7 @@ def evalOneMax(individual):
 
     #Lift Calculation
     cl=a_new*alpha_wing*(1-dE_dA)-(a_new*(i_pop+E_0))
+    cl=cl*math.sin(35/57.29)
     
 
     #Drag Calculation
@@ -154,11 +161,11 @@ def evalOneMax(individual):
     
     V_h=(l_pop*tail_area)/(S_wing*c_wing)
 
-    CM_cg=CM_ac_wb-(V_h*cl)
+    CM_cg=CM_ac_wb-(V_h*cl)+cl_wing*(h_cg-h_ac_w)
 
     #Fitness Value Calculations                                                         #Play around with Lift_fit parameters for convergence
     cm_fit=100*math.exp(-(((CM_cg-CM_cg_const)*1000)**2)/(2*1000**2))                            #Gaussian function centered around lift_constant, A controls height
-    fit=cm_fit +math.fabs(1/cd)/10 #+(1/c_pop)*2 
+    fit=cm_fit +math.fabs(1/cd)/10 +(1/c_pop)*2 
 
     return (fit,)
 
@@ -197,6 +204,9 @@ def checkBounds(min, max):
                                     curPop[5]=numpy.random.uniform(taper_const[0],taper_const[1])
                             if curPop[4]>l_t_const[1] or curPop[4]<l_t_const[0]:
                                     curPop[4]=numpy.random.uniform(l_t_const[0],l_t_const[1])
+                            if curPop[6]>h_cg_const[1] or curPop[6]<h_cg_const[0]:
+                                    curPop[6]=numpy.random.uniform(h_cg_const[0],h_cg_const[1])
+
 
             return offspring
         return wrapper
@@ -211,7 +221,7 @@ toolbox.decorate("mate", checkBounds(0, 1))
 toolbox.decorate("mutate", checkBounds(0, 1))
 
 def main():
-    random.seed(64)
+    
     
     pop = toolbox.population(n=300)
     #print(pop)
