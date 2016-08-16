@@ -25,13 +25,13 @@ dE_dA=0.1                       #Downwash slope
 
 
 
-CM_ac_wb=-0.262
+CM_ac_wb=-0.245
 CM_cg_const=0.01
 h_h_ac_w=0                    #Added for consistency
-c_wing=0.367
-b_wing=2.25
+c_wing=0.321
+b_wing=1.8
 S_wing=c_wing*b_wing
-wing_airfoil=452
+wing_airfoil=504
 alpha_wing=3
 
 
@@ -193,7 +193,7 @@ toolbox.decorate("mate", checkBounds(0, 1))
 toolbox.decorate("mutate", checkBounds(0, 1))
 
 def main():
-    random.seed(64)
+    #random.seed(64)
     
     pop = toolbox.population(n=300)
     #print(pop)
