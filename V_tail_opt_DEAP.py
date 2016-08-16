@@ -14,33 +14,34 @@ from deap import base
 from deap import creator
 from deap import tools
 
-b_const=[0.25,1]
-c_const=[0.1,0.25]
+b_const=[0.25,1.2]
+c_const=[0.1,0.4]
 taper_const=[0.5,0.95]
-l_t_const=[0.6,1.0]             #From CG to C/4_t
-i_t_const=[-2,+2]                 #Tail setting angle
-h_cg_const=[0,0.4]
+l_t_const=[0.5  ,1.2]             #From CG to C/4_t
+i_t_const=[-1,+1]                 #Tail setting angle
+h_cg_const=[0,0.25]
 taper_const=[0.5,0.95]
-E_0=0                         #Downwash angle   3.5
-dE_dA=0.1                       #Downwash slope 
+E_0=4                         #Downwash angle   3.5
+dE_dA=0                       #Downwash slope 
 
 
 
 CM_ac_wb=-0.245
-CM_cg_const=0.01
+CM_cg_const=0.00
+drag_const=0
 h_ac_w=0.25                    #Added for consistency
-c_wing=0.367
-b_wing=2.25
+c_wing=0.321
+b_wing=1.8
 S_wing=c_wing*b_wing
 wing_airfoil=504
-alpha_wing=3.2
+alpha_wing=3
 
 
 rho=1.227
 V_vt=0.07
-v=10
-e1=0.9
-e=0.85
+v=12
+e1=0.95
+e=0.9
 pi=3.1415
 
 wb = openpyxl.load_workbook('C:/Users/Aniru_000/Desktop/TD-1/Airfoil/s1223/airfoil/MasterPolarsFlat/airfoilpolars_master.xlsx')
@@ -70,6 +71,7 @@ AR=(b_wing**2)/S_wing
 a_wing=slopes[int(wing_airfoil)]/(pi*e1*AR)
 a_wing=slopes[int(wing_airfoil)]/(1+(57.3*a_wing))
 cl_wing=a_wing*alpha_wing + intercepts[int(wing_airfoil)]
+
 
 slopes=[]
 intercepts=[]
@@ -127,7 +129,7 @@ toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 def evalOneMax(individual):
     #print (individual)
     #Aliases        
-    b_pop=individual[0]
+    b_pop=individual[0]                     #CHECK THIS ON NEXT RUN
     c_pop=individual[1]
     i_pop=individual[2]
     AF_pop=individual[3]
@@ -150,22 +152,24 @@ def evalOneMax(individual):
     a_new=slopes[int(AF_pop)]/(1+(57.3*a_new))
 
     #Lift Calculation
-    cl=a_new*alpha_wing*(1-dE_dA)-(a_new*(i_pop+E_0))
-    cl=cl*math.sin(35/57.29)
+    cl=a_new*alpha_wing*(1-dE_dA)-(a_new*(i_pop+E_0))+intercepts[int(AF_pop)]
+    #cl=cl*math.cos(35/57.29)
     
 
     #Drag Calculation
     cd_i=(cl**2)/(pi*e*AR)
     cd_p=d2*(alpha_wing-(i_pop+E_0))**2 + d1*(alpha_wing-(i_pop+E_0)) + d0
     cd=cd_i+cd_p
+    drag=0.5*rho*(v**2)*tail_area*cd
     
-    V_h=(l_pop*tail_area)/(S_wing*c_wing)
+    V_h=(l_pop*tail_area*(math.cos(35/57.29)**2))/(S_wing*c_wing)
 
-    CM_cg=CM_ac_wb-(V_h*cl)+cl_wing*(h_cg-h_ac_w)
+    CM_cg=CM_ac_wb-(V_h*cl)#s+cl_wing*(h_cg-h_ac_w)
 
     #Fitness Value Calculations                                                         #Play around with Lift_fit parameters for convergence
-    cm_fit=100*math.exp(-(((CM_cg-CM_cg_const)*1000)**2)/(2*1000**2))                            #Gaussian function centered around lift_constant, A controls height
-    fit=cm_fit +math.fabs(1/cd)/10 +(1/c_pop)*2 
+    cm_fit=100*math.exp(-(((CM_cg-CM_cg_const)*100)**2)/(2*100**2))                            #Gaussian function centered around lift_constant, A controls height
+    drag_fit=10*math.exp(-((drag-drag_const)**2)/(2*35**2))
+    fit=cm_fit +drag_fit
 
     return (fit,)
 
@@ -176,6 +180,35 @@ def calculate_vtail(specs):
     h_af=specs[0][3]
     h_l=specs[0][4]
     h_taper=specs[0][5]
+    h_cg=specs[0][6]
+
+    #Wing Dimensions
+    MAC=(2/3)*h_chord*((h_taper**2 + h_taper +1)/(h_taper+1))
+    
+    tail_area=h_span*MAC
+    #print(c_pop)
+    AR=(h_span**2)/tail_area
+
+    #Slope Correction    
+    a_new=slopes[int(h_af)]/(pi*e1*AR)
+    a_new=slopes[int(h_af)]/(1+(57.3*a_new))
+
+    #Lift Calculation
+    cl=a_new*alpha_wing*(1-dE_dA)-(a_new*(h_i+E_0))+intercepts[int(h_af)]
+    #cl=cl*math.cos(35/57.29)
+
+    V_h=(h_l*tail_area*(math.cos(35/57.29)**2))/(S_wing*c_wing)
+
+    CM_cg=CM_ac_wb-(V_h*cl)#+cl_wing*(h_cg-h_ac_w)
+    
+
+    print("H Span: " +str(h_span))
+    print("H Chord: "+ str(h_chord))
+    print("H Incidence Angle: "+ str(h_i))
+    print("H Airfoil: "+ airfoil_names[int(h_af)])
+    print("H Tip Chord: "+str(h_taper*h_chord))
+    print("Moment Arm: "+str(h_l))
+    print("M_cg: " +str(CM_cg))
 
     h_area=h_span*h_chord
     #v_area=(b_wing*b_wing*c_wing*V_vt)/h_l
