@@ -20,28 +20,50 @@ from deap import tools
 from deap import algorithms
 
 
+class Display(object):
+    def __init__(self):
+        import matplotlib.pyplot as plt
+        self.plt = plt
+        self.h = []
+        self.label = []
+        self.fig, self.ax = self.plt.subplots()
+        self.plt.axis('equal')
+        self.plt.xlabel('x')
+        self.plt.ylabel('y')
+        self.plt.axis((-0.1,1.1)+self.plt.axis()[2:])
+        self.ax.grid(True)
+    def plot(self, X, Y,label=''):
+        h, = self.plt.plot(X, Y, '-', linewidth = 1)
+        self.h.append(h)
+        self.label.append(label)
+    def show(self,titlestring):
+        self.plt.suptitle(titlestring)
+        self.ax.legend(self.h, self.label)
+        self.plt.show()
+
+
 
 
 def optimize(b_const,c_const,alpha_const,taper_const,lift_target_kgs,v):
     
-    
+    fitness_weights=[100,50,25]
     lift_target=lift_target_kgs*9.8
     drag_target=0
     rho=1.227
     
-    e1=0.9
+    #e1=0.9
     e=0.85
     pi=3.1415
 
     
     
     ui.print_results("Opening Airfoil Database")
-    wb = openpyxl.load_workbook('C:/Users/Aniru_000/Desktop/TD-1/Airfoil/s1223/airfoil/MasterPolarsFlat/airfoilpolars_master.xlsx')
+    wb = openpyxl.load_workbook('C:\\Users\Aniru_000\Desktop\TD-1\Airfoil\s1223\\airfoil\\AllPolars\\airfoilpolars_master.xlsx')
     ui.print_results("Database Opened")
     sheet = wb.get_sheet_by_name('slopes')                #Change to index based
     ui.print_results("Importing Data")
     slopes=[]
-    intercepts=[]                                  
+    zero_angle=[]                                  
     cd_coeff=[]
     
     
@@ -55,13 +77,18 @@ def optimize(b_const,c_const,alpha_const,taper_const,lift_target_kgs,v):
         slopes.append(cellObj.value)
     
     for cellObj in sheet.columns[2]:
-        intercepts.append(cellObj.value)
+        zero_angle.append(cellObj.value)
+    
     
     sheet = wb.get_sheet_by_name('cd_slopes')
     airfoil_const=[0,len(slopes)-1]
+    ui.print_results(str(airfoil_const[1])+ " airfoil polars imported")
+    
+    for i in range(0,len(slopes)):
+        zero_angle[i]=-zero_angle[i]/slopes[i]
     
     
-    for rowNum in range(2,len(sheet.columns[1])+1):
+    for rowNum in range(2,len(sheet.columns[1])+2):
         a=sheet.cell(row=rowNum, column=2).value
         b=sheet.cell(row=rowNum, column=3).value
         c=sheet.cell(row=rowNum, column=4).value
@@ -84,11 +111,12 @@ def optimize(b_const,c_const,alpha_const,taper_const,lift_target_kgs,v):
         AR=(b_pop**2)/wing_area
     
         #Slope Correction    
-        a_new=slopes[int(AF_pop)]/(pi*e1*AR)
-        a_new=slopes[int(AF_pop)]/(1+(57.3*a_new))
-    
+        
+        a_new=(slopes[int(AF_pop)]*AR)/(2+(4+AR**2)**0.5)
+        
+        
         #Lift Calculation
-        cl=intercepts[int(AF_pop)]+(a_new*alpha_pop)
+        cl=a_new*(alpha_pop-(zero_angle[int(AF_pop)]))
         lift=0.5*rho*(v**2)*wing_area*cl
     
         #Drag Calculation
@@ -99,9 +127,10 @@ def optimize(b_const,c_const,alpha_const,taper_const,lift_target_kgs,v):
     
        
         #Fitness Value Calculations                                                         #Play around with Lift_fit parameters for convergence
-        lift_fit=70*math.exp(-((lift-lift_target)**2)/(2*35**2))   #70,7                     #Gaussian function centered around lift_constant, A controls height
-        drag_fit=70*math.exp(-((drag-drag_target)**2)/(2*35**2))                             #stall angle characteristics  Minimize moment
-        fit=lift_fit+drag_fit #+ (1/wing_area)*5  
+        lift_fit=math.exp(-((lift-lift_target)**2)/(2*35**2))   #70,7                     #Gaussian function centered around lift_constant, A controls height
+        drag_fit=math.exp(-((drag-drag_target)**2)/(2*35**2))                             #stall angle characteristics  Minimize moment
+        area_fit=math.exp(-((wing_area-0)**2)/(2*35**2)) 
+        fit=fitness_weights[0]*lift_fit+fitness_weights[1]*drag_fit +fitness_weights[2]*area_fit 
     
         return (fit,)
     
@@ -124,8 +153,15 @@ def optimize(b_const,c_const,alpha_const,taper_const,lift_target_kgs,v):
         
                     return offspring
                 return wrapper
-            return decorator   
+            return decorator 
         
+    def make_wing(span,chord, taper_ratio):
+        tip_chord=taper_ratio*chord
+        offset=(chord-tip_chord)/2
+        y_coord=[offset,tip_chord+offset,chord,0,chord,offset+tip_chord,offset,0,offset]
+        x_coord=[0,0,span/2,span/2,span/2,span,span,span/2,0]
+        return x_coord,y_coord
+    
     def display_results(individual):
         ui.print_results("\n Optimized Wing Specs")
         ui.print_results("********* **** ****")
@@ -144,11 +180,13 @@ def optimize(b_const,c_const,alpha_const,taper_const,lift_target_kgs,v):
         AR=(b_pop**2)/wing_area
     
         #Slope Correction    
-        a_new=slopes[int(AF_pop)]/(pi*e1*AR)
-        a_new=slopes[int(AF_pop)]/(1+(57.3*a_new))
+    
+        
+        a_new=(slopes[int(AF_pop)]*AR)/(2+(4+AR**2)**0.5)
+        
     
         #Lift Calculation
-        cl=intercepts[int(AF_pop)]+(a_new*alpha_pop)
+        cl=a_new*(alpha_pop-(zero_angle[int(AF_pop)]))
         lift=0.5*rho*(v**2)*wing_area*cl
     
         #Drag Calculation
@@ -163,8 +201,33 @@ def optimize(b_const,c_const,alpha_const,taper_const,lift_target_kgs,v):
         ui.print_results("Tip Chord: "+str(taper*c_pop)[0:4])
         ui.print_results("Lift (kgs): " +str(lift/9.8)[0:5])
         ui.print_results("Airfoil: " +airfoil_names[int(AF_pop)])
-        ui.print_results("Angle (degs): " +str(alpha_pop)[0:4])  
-    
+        ui.print_results("Angle (degs): " +str(alpha_pop)[0:4])
+        ui.print_results("Drag(kgs): " +str(drag/9.8)[0:5])
+        sheet = wb.get_sheet_by_name('x')
+        x_coord=[]
+        for cellObj in sheet.rows[int(hof[0][4])+1]:
+                x_coord.append(cellObj.value)
+                
+        sheet = wb.get_sheet_by_name('y') 
+        y_coord=[]
+        for cellObj in sheet.rows[int(hof[0][4])+1]:
+                y_coord.append(cellObj.value)
+                
+        d=Display()
+        d.plot(x_coord[1:],y_coord[1:])
+        d.show('Airfoil Section')
+        w=Display()
+        
+        w.plt.axis((-0.1,b_pop+0.1)+w.plt.axis()[2:])
+        x_c,y_c=make_wing(b_pop, c_pop, taper)
+        w.plot(x_c,y_c)
+        w.show('Wing:Top-view') 
+        
+        
+        
+        
+
+            
     
     
     
@@ -213,6 +276,8 @@ def optimize(b_const,c_const,alpha_const,taper_const,lift_target_kgs,v):
     pop, log = algorithms.eaSimple(pop, toolbox, cxpb=0.8, halloffame=hof, mutpb=0.05, ngen=40,stats=stats, verbose=False)
     
     display_results(hof[0])
+    
+
 
     
     
