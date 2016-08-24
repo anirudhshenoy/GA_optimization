@@ -13,6 +13,7 @@ import random
 import numpy
 import math
 import h5py
+from time import sleep
 
 from deap import base
 from deap import creator
@@ -62,25 +63,27 @@ class Display(object):
         self.h = []
         self.label = []
         self.fig, self.ax = self.plt.subplots()
+        
+        
+        
+    def plot(self, X, Y,label=''):
+        self.plt.clf()
         self.plt.axis('equal')
         self.plt.xlabel('x')
         self.plt.ylabel('y')
         self.plt.axis((-0.1,1.1)+self.plt.axis()[2:])
-        self.ax.grid(True)
-    def plot(self, X, Y,label=''):
-        h, = self.plt.plot(X, Y, '-', linewidth = 1)
+        
+        h,  = self.plt.plot(X, Y, '-', linewidth = 1)
+        
         self.h.append(h)
         self.label.append(label)
+        self.plt.grid(True)
     def show(self,titlestring):
         self.plt.suptitle(titlestring)
         self.ax.legend(self.h, self.label)
         self.plt.show()
 
 
-b_const=[0.5,5]
-c_const=[0.2,0.4]
-taper_const=[0.5,0.95]
-alpha_const=[0,3]
 
 
 
@@ -88,22 +91,16 @@ alpha_const=[0,3]
 
 
 
-lift_target_kgs=3.6
-lift_target=lift_target_kgs*9.8
-drag_target=0
-rho=1.227
-v=12
-e1=0.9
-e=0.85
-pi=3.1415
-fitness_weights=[100,50,25]
-
-
-
-
-def optimize(b_const,c_const,alpha_const,taper_const,lift_target_kgs,v):
-   
+def optimize(b_const,c_const,alpha_const,taper_const,lift_target_kgs,v, d):
     
+    fitness_weights=[100,50,25]
+    lift_target=lift_target_kgs*9.8
+    drag_target=0
+    rho=1.227
+    
+    #e1=0.9
+    e=0.85
+    pi=3.1415
     
     def evalOneMax(individual):      
         #Aliases        
@@ -115,7 +112,7 @@ def optimize(b_const,c_const,alpha_const,taper_const,lift_target_kgs,v):
         cl_pop=cl_global[AF_pop-1]
         cd_pop=cd_global[AF_pop-1]
         a0=-(cl_pop[1])/cl_pop[0]
-        slope=cl_pop[1]
+        slope=cl_pop[0]
     
         #Wing Dimensions
         MAC=(2/3)*c_pop*((taper**2 + taper +1)/(taper+1))   
@@ -144,10 +141,10 @@ def optimize(b_const,c_const,alpha_const,taper_const,lift_target_kgs,v):
     
        
         #Fitness Value Calculations                                                         #Play around with Lift_fit parameters for convergence
-        lift_fit=100*math.exp(-((lift-lift_target)**2)/(2*35**2))   #70,7                     #Gaussian function centered around lift_constant, A controls height
-        drag_fit=50*math.exp(-((drag-drag_target)**2)/(2*35**2))                             #stall angle characteristics  Minimize moment
-        area_fit=25*math.exp(-(((wing_area-0)*10)**2)/(2*35**2))
-        fit=lift_fit+drag_fit +area_fit 
+        lift_fit=math.exp(-((lift-lift_target)**2)/(2*50**2))   #70,7                     #Gaussian function centered around lift_constant, A controls height
+        drag_fit=math.exp(-((drag-drag_target)**2)/(2*35**2))                             #stall angle characteristics  Minimize moment
+        area_fit=math.exp(-((wing_area-0)**2)/(2*35**2)) 
+        fit=fitness_weights[0]*lift_fit+fitness_weights[1]*drag_fit +fitness_weights[2]*area_fit 
     
         return (fit,)
     
@@ -191,7 +188,7 @@ def optimize(b_const,c_const,alpha_const,taper_const,lift_target_kgs,v):
         cl_pop=cl_global[AF_pop-1]
         cd_pop=cd_global[AF_pop-1]
         a0=-(cl_pop[1])/cl_pop[0]
-        slope=cl_pop[1]
+        slope=cl_pop[0]
         
     
         #Wing Dimensions
@@ -204,10 +201,12 @@ def optimize(b_const,c_const,alpha_const,taper_const,lift_target_kgs,v):
         
         a_new=(slope*AR)/(2+(4+AR**2)**0.5)
         
+        
     
         #Lift Calculation
         cl=a_new*(alpha_pop-a0)
         lift=0.5*rho*(v**2)*wing_area*cl
+       
     
         #Drag Calculation
         cd_i=(cl**2)/(pi*e*AR)
@@ -222,20 +221,28 @@ def optimize(b_const,c_const,alpha_const,taper_const,lift_target_kgs,v):
         ui.print_results("Taper Ratio: "+str(taper)[0:4])
         ui.print_results("Tip Chord: "+str(taper*c_pop)[0:4])
         ui.print_results("Lift (kgs): " +str(lift/9.8)[0:5])
+        ui.print_results("CL: " + str(cl)[0:6])
         ui.print_results("Airfoil: " +airfoil_name)
         ui.print_results("Angle (degs): " +str(alpha_pop)[0:4])
         ui.print_results("Drag(kgs): " +str(drag/9.8)[0:5])
         ui.print_results("Plotting Wing and Airfoil....")
         
                 
-        d=Display()
-        d.plot(x_coord[1:],y_coord[1:])
-        d.show('Airfoil Section')
+        p=Display()
+        p.plot(x_coord[1:],y_coord[1:])
+        mngr = p.plt.get_current_fig_manager()
+        # to put it into the upper left corner for example:
+        mngr.window.setGeometry(50,100,640, 545)
+        p.show('Airfoil Section')
+          
         w=Display()
-        
-        w.plt.axis((-0.1,b_pop+0.1)+w.plt.axis()[2:])
+        mngr = w.plt.get_current_fig_manager()
+        # to put it into the upper left corner for example:
+        mngr.window.setGeometry(700,100,640, 545)
         x_c,y_c=make_wing(b_pop, c_pop, taper)
-        w.plot(x_c,y_c)
+        w.plot(x_c,y_c) 
+        w.plt.axis((-0.1,b_pop+0.1)+w.plt.axis()[2:])
+        
         w.show('Wing:Top-view') 
         ui.print_results('Optimization Complete!')
         
@@ -245,10 +252,11 @@ def optimize(b_const,c_const,alpha_const,taper_const,lift_target_kgs,v):
             
     
     
+    ui.print_results("Opening HFD5 File")
     
     airfoil_const=h5py_find_constants()
     cl_global,cd_global=h5py_reader_data()
-    ui.print_results("Opening HFD5 File")
+    
     ui.print_results("Imported "+str(airfoil_const[1])+" Airfoil data")
     creator.create("FitnessMax", base.Fitness,weights=(1.0,1.0,1.0 ,1.0,))
     creator.create("Individual", list,typecode='i', fitness=creator.FitnessMax)
@@ -272,28 +280,110 @@ def optimize(b_const,c_const,alpha_const,taper_const,lift_target_kgs,v):
     
     
     
-    
+    NGEN=100
+    CXPB=0.8
+    MUTPB=0.4
     toolbox.register("evaluate", evalOneMax)
     toolbox.register("mate", tools.cxTwoPoint)
-    toolbox.register("mutate", tools.mutGaussian, mu=1.0, sigma=0.2, indpb=0.05)
+    toolbox.register("mutate", tools.mutGaussian, mu=1.0, sigma=0.8, indpb=MUTPB)
     toolbox.register("select", tools.selTournament, tournsize=3)
     
     toolbox.decorate("mate", checkBounds())
     toolbox.decorate("mutate", checkBounds())
     ui.print_results("Starting Optimization")
     
-    pop = toolbox.population(n=300)
+    pop = toolbox.population(n=50)
     #print(pop)
     hof = tools.HallOfFame(1)
-    stats = tools.Statistics(lambda ind: ind.fitness.values)
-    stats.register("avg", numpy.mean)
-    stats.register("std", numpy.std)
-    stats.register("min", numpy.min)
-    stats.register("max", numpy.max)
+    #===========================================================================
+    # stats = tools.Statistics(lambda ind: ind.fitness.values)
+    # stats.register("avg", numpy.mean)
+    # stats.register("std", numpy.std)
+    # stats.register("min", numpy.min)
+    # stats.register("max", numpy.max)
+    # 
+    # pop, log = algorithms.eaSimple(pop, toolbox, cxpb=0.8, halloffame=hof, mutpb=0.05, ngen=40,stats=stats, verbose=False)
+    #===========================================================================
     
-    pop, log = algorithms.eaSimple(pop, toolbox, cxpb=0.8, halloffame=hof, mutpb=0.05, ngen=40,stats=stats, verbose=False)
+    
+    j=Display()
+    
+    for g in range(NGEN):
+                 
+                ui.print_results("Generation: " +str(g))
+                # Select the next generation individuals
+                offspring = toolbox.select(pop, len(pop))
+                # Clone the selected individuals
+                offspring = list(map(toolbox.clone, offspring))
+ 
+                # Apply crossover on the offspring
+                for child1, child2 in zip(offspring[::2], offspring[1::2]):
+                    if random.random() < CXPB:
+                        toolbox.mate(child1, child2)
+                        del child1.fitness.values
+                        del child2.fitness.values
+ 
+                # Apply mutation on the offspring
+                for mutant in offspring:
+                    if random.random() < MUTPB:
+                        toolbox.mutate(mutant)
+                        del mutant.fitness.values
+ 
+                # Evaluate the individuals with an invalid fitness
+                invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
+                fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+                for ind, fit in zip(invalid_ind, fitnesses):
+                    ind.fitness.values = fit
+ 
+                # The population is entirely replaced by the offspring
+                pop[0:40] = offspring[0:40]
+                pop[41:]=toolbox.population(n=10)
+                sorted_pop = sorted(pop, key=lambda ind: ind.fitness, reverse=True)
+                 
+                 
+                hof.update(pop)
+                if(g%1==0):
+                    #d.ax.clear()
+                    
+                    
+                    
+                    x_c,y_c=make_wing(sorted_pop[0][0],sorted_pop[0][1],sorted_pop[0][2])
+                    mngr = j.plt.get_current_fig_manager()
+                    # to put it into the upper left corner for example:
+                    mngr.window.setGeometry(700,100,640, 545)
+                    j.plot(x_c,y_c)
+                    j.plt.axis((-0.1,2+0.1)+j.plt.axis()[2:])
+                     
+                    j.show('Airfoil')
+                    j.plt.draw()
+                    
+                    #===========================================================
+                    # x_coord,y_coord,airfoil_name=h5py_reader_coords(sorted_pop[0][4])
+                    # d.plot(x_coord[1:],y_coord[1:])
+                    # mngr2 = d.plt.get_current_fig_manager()
+                    # # to put it into the upper left corner for example:
+                    # mngr2.window.setGeometry(50,100,640, 545)
+                    # d.show('Airfoil')
+                    # d.plt.draw()
+                    #===========================================================
+                       
+                    
+                    
+                    
+                    #ui.print_results('New Plot')
+                    #sleep(0.5)
+        
+                    
     
     display_results(hof[0])
+    print(evalOneMax(hof[0]))
+                
+                
+                
+       
+                
+    
+    
     
 
 
@@ -404,16 +494,18 @@ class Ui_Dialog(object):
         infoBox.exec_()       
          
     def btn_clk(self):
+        
         angle_constraint=[float(self.angle_min.text()), float(self.angle_max.text())]
         span_constraint=[float(self.span_min.text()), float(self.span_max.text())]
         taper_constraint=[float(self.taper_ratio_min.text()),float(self.taper_ratio_max.text())]
         chord_constraint=[float(self.chord_min.text()),float(self.chord_max.text())]
         payload_target=float(self.payload_target.text())
         velocity_constraint=float(self.velocity.text())
+        d=Display()
         if (angle_constraint[0]<-5 or angle_constraint[1]>10 or span_constraint[0]<0.1 or span_constraint[1]>5 or taper_constraint[0]<0.3 or taper_constraint[1]>1 or chord_constraint[0]<0.1 or chord_constraint[1]>0.5 or velocity_constraint>25):
             self.infoDialogue()
         else:
-            optimize(span_constraint,chord_constraint,angle_constraint,taper_constraint,payload_target,velocity_constraint)
+            optimize(span_constraint,chord_constraint,angle_constraint,taper_constraint,payload_target,velocity_constraint,d)
         
     def print_results(self,mystring):
         self.results.append(mystring) #append string
